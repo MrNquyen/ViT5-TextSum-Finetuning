@@ -25,9 +25,25 @@ class Trainer:
 
     
     def trainer_setup(self):
-        data_collator = DataCollatorForSeq2Seq(
+        self.data_collator = DataCollatorForSeq2Seq(
             self.tokenizer, 
             model=self.model, 
             return_tensors="pt"
         )
 
+        self.training_args = Seq2SeqTrainingArguments(
+            "tmp/",
+            do_train=True,
+            do_eval=False,
+            num_train_epochs=30,
+            learning_rate=1e-5,
+            warmup_ratio=0.05,
+            weight_decay=0.01,
+            per_device_train_batch_size=4,
+            per_device_eval_batch_size=4,
+            logging_dir='./log',
+            group_by_length=True,
+            save_strategy="epoch",
+            save_total_limit=3,
+            fp16=True,
+        )

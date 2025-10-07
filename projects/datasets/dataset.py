@@ -5,60 +5,64 @@ import os
 from torch.utils.data import Dataset, DataLoader
 
 from utils.utils import load_json, load_npy
+from utils.registry import registry
 from icecream import ic
 from tqdm import tqdm
 
 #----------DATASET----------
-class ViInforgraphicSummarizeDataset(Dataset):
-    def __init__(self, dataset_config, split):
+class ViInforgraphicSummarizeDataset:
+    def __init__(self, tokenizer, split):
         super().__init__()
-        annotation_path = dataset_config["annotations"][split]
+        self.config_dataset = registry.get_config("dataset_attributes")
+        self.config_model = registry.get_config("model_attributes")
+        annotation_path = self.config_dataset["annotations"][split]
         annotation_dict = load_json(annotation_path)
-        self.data = []
+        
+        self.tokenizer = tokenizer
+        self.data = {
+            "ids": [],
+            "inputs": [],
+            "labels": [],
+        }
 
         for im_id, item in tqdm(list(annotation_dict.items())):
-            self.data.append({
-                "id": im_id,
-                "caption": item["caption"],
-                "ocr_description": item["ocr_description"],
-                "caption_tokens": item["caption"].split(" "),
-                "ocr_description_tokens": item["ocr_description"].split(" "),
-            })
+            self.data["ids"].append(im_id)
+            self.data["inputs"].append(item["ocr_description"])
+            self.data["labels"].append(item["caption"])
 
 
-    def __getitem__(self, index):
-        return self.data[index]
-    
-    def __len__(self):
-        return len(self.data)
+    def preprocess_function(self):
+        max_input_length = self.config_model["max_input_length"]
+        max_target_length = self.config_model["max_target_length"]
+        model_inputs = self.tokenizer(
+            self.data["inputs"], max_length=max_input_length, truncation=True, padding=True
+        )
+        
+        with tokenizer.as_target_tokenizer():
+            labels = tokenizer(
+                self.data["labels"], max_length=max_target_length, truncation=True, padding=True
+            )
+        model_inputs['labels'] = labels['input_ids']
+        model_inputs['input_ids'] = model_inputs['input_ids']
+        return model_inputs
 
 
-def collate_fn(batch):
-    list_id = [item["id"] for item in batch]
-    list_captions = [item["caption"] for item in batch]
-    list_ocr_descriptions = [item["ocr_description"] for item in batch]
-    list_caption_tokens = [item["caption_tokens"] for item in batch]
-    list_ocr_description_tokens = [item["ocr_description_tokens"] for item in batch]
-    
-    return {
-        "list_id": list_id,
-        "list_captions": list_captions,
-        "list_ocr_descriptions": list_ocr_descriptions,
-        "list_caption_tokens": list_caption_tokens,
-        "list_ocr_description_tokens": list_ocr_description_tokens,
-    }
+    def get_tokenized_dataset(self):
+        tokenized_dataset = Dataset.from_dict(self.data)
+        tokenized_dataset = dataset.map(
+            self.preprocess_function, 
+            batched=True, 
+            remove_columns=['inputs'], 
+            num_proc=8
+        )
+        return tokenized_dataset
 
 
-def get_loader(dataset_config, batch_size, split):
-    if split not in ["train", "val", "test"]:
-        raise ValueError(f"No split found for {split}")
-    dataset = ViInforgraphicSummarizeDataset(dataset_config, split)
+def get_test_loader(self, tokenized_dataset, data_collator):
     dataloader = DataLoader(
-        dataset=dataset,
-        batch_size=batch_size,
-        shuffle=split=="train",
-        collate_fn=collate_fn,
-        num_workers=4,  # Add multiple workers
-        pin_memory=True
+        tokenized_dataset, 
+        collate_fn=data_collator, 
+        batch_size=32,
+        shuffle=False
     )
     return dataloader
