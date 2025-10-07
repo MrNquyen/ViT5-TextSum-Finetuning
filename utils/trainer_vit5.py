@@ -149,6 +149,7 @@ class Trainer():
             predictions.extend(outputs)
             references.extend(actuals)
             metrics.add_batch(predictions=outputs, references=actuals)
+            metrics.compute()
     
-    metric_score = metrics.compute()
-    self.writer_evaluation.LOG_INFO(f"Test Evaluation Score is: {metric_score}")
+    metric_scores = [{k: v.mid.fmeasure} for k,v in metrics.compute(predictions=predictions, references=references).items()]
+    self.writer_evaluation.LOG_INFO(f"Test Evaluation Score is: \n{metric_scores}")
