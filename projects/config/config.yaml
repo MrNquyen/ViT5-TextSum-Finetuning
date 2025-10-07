@@ -1,0 +1,44 @@
+
+dataset_attributes:
+  annotations:
+    train: /data2/npl/ViInfographicCaps/data/data/paddle_ocr_description/train_new.json
+    val: /data2/npl/ViInfographicCaps/data/data/paddle_ocr_description/val_new.json
+    test: /data2/npl/ViInfographicCaps/data/data/paddle_ocr_description/test_new.json
+model_attributes:
+  hidden_size: 768
+  pretrained: /data2/npl/ViInfographicCaps/model/vit5-large
+optimizer_attributes:
+  lr_scale: 0.1 # scale lr for finetuning modules
+  params:
+    eps: 1.0e-08
+    lr: 3e-5 
+    weight_decay: 0.01
+  type: AdamW
+training_parameters:
+  epochs: 40
+  batch_size: 64
+  # batch_size: 16
+  iterations: 9000
+  lr_scheduler:
+    status: true
+    type: "step"
+    gamma : 0.1
+    lr_steps:
+      - 3000
+      - 6000
+      - 8000
+      - 10000
+    lr_ratio: 0.1
+    use_warmup: true
+    warmup_factor: 0.2
+    warmup_iterations: 1000
+  max_iterations: 12000
+  # snapshot_interval: 300
+  # snapshot_interval: 500
+  snapshot_interval: 500
+  monitored_metric: m4c_textcaps/textcaps_bleu4
+  metric_minimize: false
+  seed: 2021
+
+
+    
