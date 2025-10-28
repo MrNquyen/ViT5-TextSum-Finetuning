@@ -2,7 +2,9 @@ import torch
 import json
 import os
 
-from torch.utils.data import Dataset, DataLoader
+# from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
+from datasets import Dataset
 
 from utils.utils import load_json, load_npy
 from utils.registry import registry
@@ -31,25 +33,30 @@ class ViInforgraphicSummarizeDataset:
             self.data["labels"].append(item["caption"])
 
 
-    def preprocess_function(self):
+    def preprocess_function(self, examples):
         max_input_length = self.config_model["max_input_length"]
         max_target_length = self.config_model["max_target_length"]
+
         model_inputs = self.tokenizer(
-            self.data["inputs"], max_length=max_input_length, truncation=True, padding=True
+            examples["inputs"],
+            max_length=max_input_length,
+            truncation=True,
+            padding="max_length",
         )
-        
-        with tokenizer.as_target_tokenizer():
-            labels = tokenizer(
-                self.data["labels"], max_length=max_target_length, truncation=True, padding=True
-            )
-        model_inputs['labels'] = labels['input_ids']
-        model_inputs['input_ids'] = model_inputs['input_ids']
+
+        labels = self.tokenizer(
+            examples["labels"],
+            max_length=max_target_length,
+            truncation=True,
+            padding="max_length",
+        )
+        model_inputs["labels"] = labels["input_ids"]
         return model_inputs
 
 
     def get_tokenized_dataset(self):
         tokenized_dataset = Dataset.from_dict(self.data)
-        tokenized_dataset = dataset.map(
+        tokenized_dataset = tokenized_dataset.map(
             self.preprocess_function, 
             batched=True, 
             remove_columns=['inputs'], 
@@ -58,7 +65,7 @@ class ViInforgraphicSummarizeDataset:
         return tokenized_dataset
 
 
-def get_test_loader(self, tokenized_dataset, data_collator):
+def get_test_loader(tokenized_dataset, data_collator):
     dataloader = DataLoader(
         tokenized_dataset, 
         collate_fn=data_collator, 

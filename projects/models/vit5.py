@@ -6,7 +6,7 @@ from torch.nn import functional as F
 from utils.registry import registry
 
 
-class Trainer:
+class ViT5:
     def __init__(self):
         self.model_config = registry.get_config("model_attributes")
         self.device = registry.get_args("device")
